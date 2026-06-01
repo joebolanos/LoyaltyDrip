@@ -2,6 +2,7 @@ using LoyaltyPoints.API.Endpoints.Drip;
 using LoyaltyPoints.API.Endpoints.Internal;
 using LoyaltyPoints.Application;
 using LoyaltyPoints.Infrastructure;
+using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,7 +13,10 @@ builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("De
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
+{
     app.MapOpenApi();
+    app.MapScalarApiReference();
+}
 
 app.UseHttpsRedirection();
 

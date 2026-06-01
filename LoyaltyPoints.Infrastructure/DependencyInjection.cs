@@ -1,26 +1,17 @@
 using System.Data;
 using Dapper;
-using LoyaltyPoints.Domain;
-using LoyaltyPoints.Domain.Repositories;
-using LoyaltyPoints.Infrastructure.Repositories;
+using LoyaltyPoints.Application.Abstractions;
+using LoyaltyPoints.Infrastructure.Persistance;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace LoyaltyPoints.Infrastructure;
 
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddInfrastructureServices(this IServiceCollection services)
     {
         SqlMapper.AddTypeHandler(new DateOnlyTypeHandler());
-
-        services.AddSingleton<IDbConnectionFactory>(_ => new DbConnectionFactory(connectionString));
-
-        services.AddScoped<ICustomerRepository, CustomerRepository>();
-        services.AddScoped<ILPBalanceRepository, LPBalanceRepository>();
-        services.AddScoped<IDripPoolRepository, DripPoolRepository>();
-        services.AddScoped<IUnclaimedPoolRepository, UnclaimedPoolRepository>();
-        services.AddScoped<IDailyClaimSnapshotRepository, DailyClaimSnapshotRepository>();
-
+        services.AddSingleton<ISqlConnectionFactory, SqlConnectionFactory>();
         return services;
     }
 

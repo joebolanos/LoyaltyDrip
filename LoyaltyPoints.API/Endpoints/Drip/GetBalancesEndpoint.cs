@@ -1,4 +1,4 @@
-using LoyaltyPoints.Application.Common;
+using LoyaltyPoints.API.Extensions;
 using LoyaltyPoints.Application.Drip.Queries.GetCustomerBalances;
 using MediatR;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -8,24 +8,27 @@ namespace LoyaltyPoints.API.Endpoints.Drip;
 
 public static class GetBalancesEndpoint
 {
-    public static void Map(IEndpointRouteBuilder app)
+    public static RouteGroupBuilder MapGetBalancesEndpoints(this RouteGroupBuilder group)
     {
-        app.MapGet("/drip/balances/{customerId}", HandleAsync);
+        group.MapGet("/balances/{customerId}", HandleAsync)
+            .WithTags("Drip")
+            .WithSummary("Get customer loyalty balances")
+            .WithName("GetCustomerBalances")
+            .ProducesProblem(404)
+            .MapToApiVersion(1);
+
+        return group;
     }
 
-    private static async Task<Results<Ok<CustomerBalancesResult>, NotFound, ProblemHttpResult>> HandleAsync(
+    private static async Task<Results<Ok<CustomerBalancesDto>, ProblemHttpResult>> HandleAsync(
         string customerId,
         [FromServices] IMediator mediator,
         CancellationToken ct)
     {
         var result = await mediator.Send(new GetCustomerBalancesQuery(customerId), ct);
 
-        return result.Match<Results<Ok<CustomerBalancesResult>, NotFound, ProblemHttpResult>>(
-            balances => TypedResults.Ok(balances),
-            error =>
-            {
-                if (error.Code == DomainError.NotFound) return TypedResults.NotFound();
-                return TypedResults.Problem(error.Message, statusCode: StatusCodes.Status400BadRequest);
-            });
+        return result.Match<Results<Ok<CustomerBalancesDto>, ProblemHttpResult>>(
+            dto       => TypedResults.Ok(dto),
+            exception => exception.ToProblemResult());
     }
 }

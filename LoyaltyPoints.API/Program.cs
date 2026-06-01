@@ -1,14 +1,27 @@
+using Asp.Versioning;
 using LoyaltyPoints.API.Endpoints.Drip;
 using LoyaltyPoints.API.Endpoints.Internal;
+using LoyaltyPoints.API.Services;
 using LoyaltyPoints.Application;
+using LoyaltyPoints.Application.Abstractions;
 using LoyaltyPoints.Infrastructure;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration.GetConnectionString("Default")!);
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IUser, CurrentUser>();
+
+builder.Services.AddApiVersioning(opt =>
+{
+    opt.DefaultApiVersion = new ApiVersion(1);
+    opt.ReportApiVersions = true;
+    opt.AssumeDefaultVersionWhenUnspecified = true;
+});
+
+builder.Services.AddApplicationServices();
+builder.Services.AddInfrastructureServices();
 
 var app = builder.Build();
 
@@ -24,8 +37,13 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-ClaimEndpoint.Map(app);
-GetBalancesEndpoint.Map(app);
-NightlyJobEndpoint.Map(app);
+var v1 = app.NewVersionedApi();
+
+var drip = v1.MapGroup("/v{version:apiVersion}/drip");
+drip.MapClaimEndpoints();
+drip.MapGetBalancesEndpoints();
+
+var internalGroup = v1.MapGroup("/v{version:apiVersion}/internal/drip");
+internalGroup.MapNightlyJobEndpoints();
 
 app.Run();

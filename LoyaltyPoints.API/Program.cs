@@ -39,12 +39,12 @@ app.UseHttpsRedirection();
 
 var v1 = app.NewVersionedApi();
 
-var drip = v1.MapGroup("/v{version:apiVersion}/drip");
+var drip = v1.MapGroup("/drip");
 drip.MapClaimEndpoints();
 drip.MapGetBalancesEndpoints();
 drip.MapAllotmentPreviewEndpoints();
 
-var internalGroup = v1.MapGroup("/v{version:apiVersion}/internal/drip");
+var internalGroup = v1.MapGroup("/internal/drip");
 internalGroup.MapNightlyJobEndpoints();
 
 app.Run();

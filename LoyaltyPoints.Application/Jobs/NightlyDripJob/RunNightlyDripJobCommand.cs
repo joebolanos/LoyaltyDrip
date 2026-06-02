@@ -1,3 +1,4 @@
+using System.Data;
 using Core.Shared.Common;
 using Dapper;
 using LoyaltyPoints.Application.Abstractions;
@@ -16,13 +17,14 @@ internal sealed class RunNightlyDripJobHandler(ISqlConnectionFactory connection)
             using var sqlConnection = connection.CreateConnection();
             await sqlConnection.OpenAsync(cancellationToken);
 
-            var result = await sqlConnection.QuerySingleAsync<SpNightlyJobResult>(
-                "EXEC sp_ProcessNightlyDripJob");
+            var result = await sqlConnection.QueryFirstOrDefaultAsync<SpNightlyJobResult>(
+                "sp_ProcessNightlyDripJob",
+                commandType: CommandType.StoredProcedure);
 
             return NightlyJobDto.Map(
-                customersProcessed: result.WagersProcessed,
-                forfeitsApplied:    result.ForfeitsApplied,
-                snapshotsCreated:   result.SnapshotsCreated);
+                wagersProcessed:  result?.WagersProcessed ?? 0,
+                forfeitsApplied:  result?.ForfeitsApplied ?? 0,
+                snapshotsCreated: result?.SnapshotsCreated ?? 0);
         }
         catch (Exception ex)
         {

@@ -18,7 +18,9 @@ public static class ExceptionExtensions
                     statusCode: StatusCodes.Status400BadRequest),
             ForbiddenException ffe =>
                 TypedResults.Problem(ffe.Message, statusCode: StatusCodes.Status403Forbidden),
+            InvalidOperationException ioe =>
+                TypedResults.Problem(ioe.Message, statusCode: StatusCodes.Status400BadRequest),
             _ =>
-                TypedResults.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest),
+                TypedResults.Problem("An unexpected error occurred.", statusCode: StatusCodes.Status500InternalServerError),
         };
 }

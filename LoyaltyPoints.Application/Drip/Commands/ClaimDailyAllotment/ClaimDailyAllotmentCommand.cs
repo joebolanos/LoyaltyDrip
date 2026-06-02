@@ -39,11 +39,10 @@ internal sealed class ClaimDailyAllotmentHandler(
                 commandType: CommandType.StoredProcedure);
 
             var errorCode = parameters.Get<int>("ErrorCode");
-            var allotment = parameters.Get<int>("AllotmentOut");
 
             return errorCode switch
             {
-                0 => ClaimDailyAllotmentDto.Map(allotment),
+                0 => ClaimDailyAllotmentDto.Map(parameters.Get<int>("AllotmentOut")),
                 1 => new NotFoundException("No active drip pool found for this customer."),
                 2 => new InvalidOperationException("Ya reclamaste tu reward de hoy."),
                 3 => new InvalidOperationException("Insufficient drip pool balance."),

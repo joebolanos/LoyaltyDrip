@@ -42,6 +42,7 @@ var v1 = app.NewVersionedApi();
 var drip = v1.MapGroup("/v{version:apiVersion}/drip");
 drip.MapClaimEndpoints();
 drip.MapGetBalancesEndpoints();
+drip.MapAllotmentPreviewEndpoints();
 
 var internalGroup = v1.MapGroup("/v{version:apiVersion}/internal/drip");
 internalGroup.MapNightlyJobEndpoints();

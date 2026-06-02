@@ -1,27 +1,21 @@
+using System.Data;
 using Core.Shared.Common;
 using Core.Shared.Exceptions;
+using Dapper;
 using FluentValidation;
 using LoyaltyPoints.Application.Abstractions;
-using LoyaltyPoints.Application.Common;
-using LoyaltyPoints.Domain.Entities;
-using MediatR; 
-using Dapper;
-
+using MediatR;
 
 namespace LoyaltyPoints.Application.Drip.Commands.ClaimDailyAllotment;
 
 public sealed record ClaimDailyAllotmentCommand(string CustomerId)
     : IRequest<Result<ClaimDailyAllotmentDto>>;
 
-
-
 internal sealed class ClaimDailyAllotmentHandler(
     ISqlConnectionFactory connection,
     IValidator<ClaimDailyAllotmentCommand> validator)
     : IRequestHandler<ClaimDailyAllotmentCommand, Result<ClaimDailyAllotmentDto>>
 {
-    private const decimal AllotmentPercentage = 0.20m;
-
     public async Task<Result<ClaimDailyAllotmentDto>> Handle(
         ClaimDailyAllotmentCommand request,
         CancellationToken cancellationToken)
@@ -32,61 +26,30 @@ internal sealed class ClaimDailyAllotmentHandler(
 
         try
         {
+            var parameters = new DynamicParameters();
+            parameters.Add("CustomerId", request.CustomerId);
+            parameters.Add("AllotmentOut", dbType: DbType.Int32, direction: ParameterDirection.Output);
+            parameters.Add("ErrorCode",   dbType: DbType.Int32, direction: ParameterDirection.Output);
+
             using var sqlConnection = connection.CreateConnection();
             await sqlConnection.OpenAsync(cancellationToken);
 
-            var dripPool = await sqlConnection.QuerySingleOrDefaultAsync<DripPool>(
-                SqlQueries.GetDripPoolByCustomerId, new { request.CustomerId });
+            await sqlConnection.ExecuteAsync(
+                "sp_ClaimDailyAllotment", parameters,
+                commandType: CommandType.StoredProcedure);
 
-            if (dripPool is null || dripPool.Balance == 0)
-                return new NotFoundException("No active drip pool found for this customer.");
+            var errorCode = parameters.Get<int>("ErrorCode");
+            var allotment = parameters.Get<int>("AllotmentOut");
 
-            var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            var existing = await sqlConnection.QuerySingleOrDefaultAsync<DailyClaimSnapshot>(
-                SqlQueries.GetSnapshotByCustomerAndDate,
-                new { request.CustomerId, CycleDate = today.ToDateTime(TimeOnly.MinValue) });
-
-            if (existing is not null)
-                return new InvalidOperationException("Ya reclamaste tu reward de hoy.");
-
-            int allotment = (int)Math.Floor(dripPool.Balance * AllotmentPercentage);
-            if (allotment == 0)
-                return new InvalidOperationException("El balance del drip pool no genera un allotment positivo.");
-
-            using var tx = sqlConnection.BeginTransaction();
-            try
+            return errorCode switch
             {
-                await sqlConnection.ExecuteAsync(
-                    SqlQueries.DeductDripPoolBalance,
-                    new { request.CustomerId, Amount = allotment },
-                    tx);
-
-                await sqlConnection.ExecuteAsync(
-                    SqlQueries.AddLPPoints,
-                    new { CustomerID = request.CustomerId, Amount = allotment },
-                    tx);
-
-                await sqlConnection.ExecuteAsync(
-                    SqlQueries.InsertSnapshot,
-                    new
-                    {
-                        request.CustomerId,
-                        CycleDate = today.ToDateTime(TimeOnly.MinValue),
-                        Status = (byte)ClaimStatus.Claimed,
-                        ClaimedAt = (DateTime?)DateTime.UtcNow,
-                        CreatedAt = DateTime.UtcNow,
-                    },
-                    tx);
-
-                tx.Commit();
-            }
-            catch
-            {
-                tx.Rollback();
-                throw;
-            }
-
-            return ClaimDailyAllotmentDto.Map(allotment);
+                0 => ClaimDailyAllotmentDto.Map(allotment),
+                1 => new NotFoundException("No active drip pool found for this customer."),
+                2 => new InvalidOperationException("Ya reclamaste tu reward de hoy."),
+                3 => new InvalidOperationException("Insufficient drip pool balance."),
+                4 => new InvalidOperationException("Drip pool balance is too low to generate an allotment."),
+                _ => new InvalidOperationException($"Unexpected error from sp_ClaimDailyAllotment: {errorCode}.")
+            };
         }
         catch (Exception ex)
         {

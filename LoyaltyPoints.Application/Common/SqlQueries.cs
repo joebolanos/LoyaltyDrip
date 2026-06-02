@@ -2,6 +2,8 @@ namespace LoyaltyPoints.Application.Common;
 
 internal static class SqlQueries
 {
+    internal static readonly string GetLoyaltyPointsBalanceByUser = "dbo.GetLoyaltyPointsBalanceByUser";
+
     internal static readonly string GetDripPoolByCustomerId =
         @"SELECT DripPoolId, CustomerId, Balance, CurrentBase, LastRefillAt, UpdatedAt, CreatedAt
           FROM dbo.DripPool

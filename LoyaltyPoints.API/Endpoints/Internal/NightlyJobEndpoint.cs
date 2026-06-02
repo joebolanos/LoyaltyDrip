@@ -21,16 +21,13 @@ public static class NightlyJobEndpoint
     }
 
     private static async Task<Results<Ok<NightlyJobDto>, ProblemHttpResult>> HandleAsync(
-        [FromBody] NightlyJobRequest request,
         [FromServices] IMediator mediator,
         CancellationToken ct)
     {
-        var result = await mediator.Send(new RunNightlyDripJobCommand(request.CustomerId), ct);
+        var result = await mediator.Send(new RunNightlyDripJobCommand(), ct);
 
         return result.Match<Results<Ok<NightlyJobDto>, ProblemHttpResult>>(
             dto       => TypedResults.Ok(dto),
             exception => exception.ToProblemResult());
     }
-
-    private record NightlyJobRequest(string CustomerId);
 }

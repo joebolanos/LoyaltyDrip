@@ -46,5 +46,6 @@ drip.MapAllotmentPreviewEndpoints();
 
 var internalGroup = v1.MapGroup("/internal/drip");
 internalGroup.MapNightlyJobEndpoints();
+internalGroup.MapDripConfigEndpoints();
 
 app.Run();
